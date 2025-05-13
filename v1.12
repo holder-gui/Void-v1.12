@@ -762,14 +762,11 @@ UserInputService.InputBegan:Connect(function(input,gameProcessed)
 end)
 
 -- Ensure GUI reopens if removed (e.g., on teleport)
-Players.LocalPlayer.PlayerGui.ChildRemoved:Connect(function(child)
+Players.LocalPlayer:WaitForChild("PlayerGui").ChildRemoved:Connect(function(child)
     if child.Name == screenGui.Name then
         -- re-parent the GUI back
         screenGui.Parent = player:WaitForChild("PlayerGui")
     end
-end)
-
--- Goku Farm Loop
 end)
 
 -- Goku Farm Loop
