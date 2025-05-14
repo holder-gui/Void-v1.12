@@ -22,6 +22,7 @@ local freezePlayer = false
 local gokuFarm = false
 local gonKillFarm = false
 local shrine = false
+local dungeonFarm = false
 local chestTimerRunning = false
 local cooldown = 0.03
 local currentTab = "Main"
@@ -75,32 +76,12 @@ delay(5, function() splash:Destroy() end)
 
 -- Main frame
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0,360,0,338) -- extended height by 8px
+frame.Size = UDim2.new(0,360,0,338)
 frame.Position = UDim2.new(0,20,0,250)
-frame.BackgroundColor3 = themes[currentTheme].bg
+frame.BackgroundColor3 = themes[currentTheme] and themes[currentTheme].bg or Color3.fromRGB(40,40,40)
 frame.Active = true
 frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
-frame.Position = UDim2.new(0,20,0,250)
-frame.BackgroundColor3 = themes[currentTheme].bg
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
-
--- Border
-local stroke = Instance.new("UIStroke", frame)
-stroke.Color = Color3.fromRGB(255,0,255)
-stroke.Thickness = 5
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-spawn(function()
-    local t,dir = 0.5, 0.01
-    while frame.Parent do
-        t = t + dir
-        if t >= 0.8 or t <= 0.2 then dir = -dir end
-        stroke.Transparency = t
-        task.wait(0.05)
-    end
-end)
 
 -- Attribution
 local attr = Instance.new("TextLabel", frame)
@@ -113,27 +94,35 @@ attr.TextSize = 14
 attr.TextColor3 = Color3.new(0,0,0)
 attr.BackgroundTransparency = 1
 
--- Minimize
-local minBtn = Instance.new("TextButton", screenGui)
-minBtn.Size = UDim2.new(0,30,0,30)
-minBtn.Position = UDim2.new(0,380,0,250)
-minBtn.Text = "🔽"
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 18
-minBtn.BackgroundColor3 = themes[currentTheme].btn
-minBtn.Active = true
-minBtn.Draggable = true
-minBtn.MouseButton1Click:Connect(function()
-    local vis = not frame.Visible
-    frame.Visible = vis
-    minBtn.Text = vis and "🔽" or "🔼"
+-- RGB Animation
+spawn(function()
+    local hue = 0
+    while true do
+        if currentTheme == "RGB" then
+            hue = (hue + 0.005) % 1
+            local col = Color3.fromHSV(hue, 1, 1)
+            if frame then frame.BackgroundColor3 = col end
+            if tabFrame then tabFrame.BackgroundColor3 = col end
+            if tabs then
+                for _, b in pairs(tabs) do
+                    if b and b:IsA("TextButton") then
+                        b.BackgroundColor3 = Color3.new(0, 0, 0)
+                        b.BackgroundTransparency = 0.4
+                        b.TextColor3 = Color3.new(0, 0, 0)
+                    end
+                end
+            end
+        end
+        task.wait(0.03)
+    end
 end)
 
--- Tabs
+-- Main Tab
+-- Ensure pages is defined before using it
 local tabFrame = Instance.new("Frame", frame)
 tabFrame.Size = UDim2.new(1,0,0,30)
 tabFrame.Position = UDim2.new(0,0,0,0)
-tabFrame.BackgroundColor3 = themes[currentTheme].bg
+tabFrame.BackgroundColor3 = themes[currentTheme] and themes[currentTheme].bg or Color3.fromRGB(40,40,40)
 Instance.new("UICorner", tabFrame).CornerRadius = UDim.new(0,16)
 
 local tabNames = {"Main","Quest","Duping","Themes","Misc.","Drops"}
@@ -147,7 +136,7 @@ for i, name in ipairs(tabNames) do
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 14
     btn.BackgroundColor3 = Color3.new(0,0,0)
-    btn.TextColor3 = Color3.new(1,1,1)
+    btn.TextColor3 = Color3.new(0, 0, 0)
     btn.MouseButton1Click:Connect(function()
         currentTab = name
         player:SetAttribute("GuiTab", name)
@@ -169,111 +158,99 @@ function updateTabs()
         p.Visible = (n == currentTab)
         tabs[n].BackgroundColor3 = themes[currentTheme].btn
     end
-    tabs[currentTab].BackgroundColor3 = themes[currentTheme].bg
+    if tabs[currentTab] and themes[currentTheme] then tabs[currentTab].BackgroundColor3 = themes[currentTheme].bg end
 end
 updateTabs()
 
--- RGB Animation
-spawn(function()
-    local hue = 0
-    while true do
-        if currentTheme == "RGB" then
-            hue = (hue + 0.005) % 1
-            local col = Color3.fromHSV(hue,1,1)
-            frame.BackgroundColor3    = col
-            minBtn.BackgroundColor3   = col
-            tabFrame.BackgroundColor3 = col
-            for _,b in pairs(tabs) do b.BackgroundColor3 = col end
-        end
-        task.wait(0.03)
-    end
-end)
-
 -- Main Tab
-    do
-        local m = pages.Main
-        -- make the main tab scrollable
-        local scrollMain = Instance.new("ScrollingFrame", m)
-        -- leave top and bottom draggable margins (28px each)
-        scrollMain.Position = UDim2.new(0, 0, 0, 28)
-        scrollMain.Size = UDim2.new(1, 0, 1, -56)
-        scrollMain.BackgroundTransparency = 1
-        scrollMain.ScrollBarThickness = 6
-        scrollMain.Active = true
-        scrollMain.ZIndex = 1
-        local uiList = Instance.new("UIListLayout", scrollMain)
-        uiList.SortOrder = Enum.SortOrder.LayoutOrder
-        uiList.Padding = UDim.new(0, 4)
+ do
+     local m = pages.Main
+     local scrollMain = Instance.new("ScrollingFrame", m)
+     scrollMain.Position = UDim2.new(0, 0, 0, 28)
+     scrollMain.Size = UDim2.new(1, 0, 1, -56)
+     scrollMain.BackgroundTransparency = 1
+     scrollMain.ScrollBarThickness = 6
+     scrollMain.Active = true
+     scrollMain.ZIndex = 1
+     local uiList = Instance.new("UIListLayout", scrollMain)
+     uiList.SortOrder = Enum.SortOrder.LayoutOrder
+     uiList.Padding = UDim.new(0, 4)
 
-        local function mkToggle(txt, ref)
-            local container = Instance.new("Frame", scrollMain)
-            container.Size = UDim2.new(1, 0, 0, 30)
-            container.BackgroundTransparency = 1
+     local function mkToggle(txt, ref)
+         local row = Instance.new("Frame", scrollMain)
+         row.Size = UDim2.new(1, 0, 0, 30)
+         row.BackgroundTransparency = 1
+         local layout = Instance.new("UIListLayout", row)
+         layout.FillDirection = Enum.FillDirection.Horizontal
+         layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+         layout.SortOrder = Enum.SortOrder.LayoutOrder
+         layout.Padding = UDim.new(0, 4)
 
-            local lbl = Instance.new("TextLabel", container)
-            lbl.Size = UDim2.new(0.7, 0, 1, 0)
-            lbl.Position = UDim2.new(0, 0, 0, 0)
-            lbl.Text = txt
-            lbl.Font = Enum.Font.GothamBold
-            lbl.TextSize = 14
-            lbl.TextColor3 = Color3.new(1, 1, 1)
-            lbl.BackgroundColor3 = Color3.new(0, 0, 0)
-            lbl.BackgroundTransparency = 0.9
+         local lbl = Instance.new("TextLabel", row)
+         lbl.Size = UDim2.new(0.7, -4, 1, 0)
+         lbl.Text = txt
+         lbl.Font = Enum.Font.GothamBold
+         lbl.TextSize = 14
+         lbl.TextColor3 = Color3.new(1, 1, 1)
+         lbl.BackgroundColor3 = Color3.new(0, 0, 0)
+         lbl.BackgroundTransparency = 0.9
 
-            local btn = Instance.new("TextButton", container)
-            btn.Size = UDim2.new(0.3, 0, 1, 0)
-            btn.Position = UDim2.new(0.7, 0, 0, 0)
-            btn.Font = Enum.Font.GothamBold
-            btn.TextSize = 18
-            btn.BackgroundColor3 = themes[currentTheme].btn
-            btn.Text = "❌"
+         local btn = Instance.new("TextButton", row)
+         btn.Size = UDim2.new(0.3, -4, 1, 0)
+         btn.Font = Enum.Font.GothamBold
+         btn.TextSize = 18
+         btn.BackgroundColor3 = themes[currentTheme] and themes[currentTheme].btn or Color3.fromRGB(90,90,90)
+         btn.Text = "❌"
 
-            btn.MouseButton1Click:Connect(function()
-                local state = (btn.Text == "❌")
-                btn.Text = state and "✅" or "❌"
-                if ref == "fire" then
-                    fireGun = state
-                elseif ref == "white" then
-                    whiteBlow = state
-                elseif ref == "melee" then
-                    melee = state
-                elseif ref == "freeze" then
-                    freezePlayer = state
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local hrp = character:FindFirstChild("HumanoidRootPart")
-                    if hrp then hrp.Anchored = state end
-                elseif ref == "shrine" then
-                    shrine = state
-                elseif ref == "gokuFarm" then
-                    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                    if state then
-                        if hrp then savedGokuPosition = hrp.CFrame end
-                        gokuFarm = true
-                    else
-                        if hrp and savedGokuPosition then hrp.CFrame = savedGokuPosition end
-                        gokuFarm = false
-                    end
-                elseif ref == "gonkill" then
-                    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                    if state then
-                        if hrp then savedGonKillPosition = hrp.CFrame end
-                        gonKillFarm = true
-                    else
-                        if hrp and savedGonKillPosition then hrp.CFrame = savedGonKillPosition end
-                        gonKillFarm = false
-                    end
-                end
-            end)
-        end
+         btn.MouseButton1Click:Connect(function()
+             local state = (btn.Text == "❌")
+             btn.Text = state and "✅" or "❌"
+             if ref == "fire" then
+                 fireGun = state
+             elseif ref == "white" then
+                 whiteBlow = state
+             elseif ref == "melee" then
+                 melee = state
+             elseif ref == "freeze" then
+                 freezePlayer = state
+                 local character = player.Character or player.CharacterAdded:Wait()
+                 local hrp = character:FindFirstChild("HumanoidRootPart")
+                 if hrp then hrp.Anchored = state end
+             elseif ref == "shrine" then
+                 shrine = state
+             elseif ref == "gokuFarm" then
+                 local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                 if state then
+                     if hrp then savedGokuPosition = hrp.CFrame end
+                     gokuFarm = true
+                 else
+                     if hrp and savedGokuPosition then hrp.CFrame = savedGokuPosition end
+                     gokuFarm = false
+                 end
+             elseif ref == "gonkill" then
+                 local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                 if state then
+                     if hrp then savedGonKillPosition = hrp.CFrame end
+                     gonKillFarm = true
+                 else
+                     if hrp and savedGonKillPosition then hrp.CFrame = savedGonKillPosition end
+                     gonKillFarm = false
+                 end
+             elseif ref == "dungeon" then
+                 dungeonFarm = state
+             end
+         end)
+     end
 
-        mkToggle("FireGun", "fire")
-        mkToggle("WhiteBlow", "white")
-        mkToggle("melee", "melee")
-        mkToggle("FrzPlr", "freeze")
-        mkToggle("GokuFarm", "gokuFarm")
-        mkToggle("Gon&Kill farm", "gonkill")
-        mkToggle("Shrine", "shrine")
-    end
+     mkToggle("FireGun", "fire")
+     mkToggle("WhiteBlow", "white")
+     mkToggle("melee", "melee")
+     mkToggle("FrzPlr", "freeze")
+     mkToggle("GokuFarm", "gokuFarm")
+     mkToggle("Gon&Kill farm", "gonkill")
+     mkToggle("Shrine", "shrine")
+     mkToggle("DungeonFarm", "dungeon")
+ end
 -- Ensure freeze persists on respawn
 player.CharacterAdded:Connect(function(char)
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
@@ -329,10 +306,22 @@ do
         b.MouseButton1Click:Connect(function()
             currentTheme = nm
             player:SetAttribute("GuiTheme", nm)
-            frame.BackgroundColor3    = c.bg
-            minBtn.BackgroundColor3   = c.btn
-            tabFrame.BackgroundColor3 = c.bg
-            for _,btn in pairs(tabs) do btn.BackgroundColor3 = themes[currentTheme].btn end
+            frame.BackgroundColor3 = c and c.bg or frame.BackgroundColor3
+            if minBtn and c and c.btn then minBtn.BackgroundColor3 = c.btn end
+            if tabFrame and c and c.bg then tabFrame.BackgroundColor3 = c.bg end
+            for _,btn in pairs(tabs) do
+    if btn and themes[currentTheme] then
+        if currentTheme == "RGB" then
+            btn.BackgroundColor3 = Color3.new(0, 0, 0)
+            btn.BackgroundTransparency = 0.4
+            btn.TextColor3 = Color3.new(0, 0, 0)
+        else
+            btn.BackgroundColor3 = themes[currentTheme].btn
+            btn.BackgroundTransparency = 0
+            btn.TextColor3 = Color3.new(1,1,1)
+        end
+    end
+end
         end)
         y=y+40
     end
@@ -471,8 +460,123 @@ end
             end
         end
     end)
+    -- Retreat Button
+local retreatBtn = Instance.new("TextButton", m)
+retreatBtn.Position = UDim2.new(0, 20, 0, 90) -- Positioned below ClrEffects (y=50) and ClrPTCL (also y=50)
+retreatBtn.Size = UDim2.new(0, 100, 0, 30)
+retreatBtn.Text = "RETREAT!"
+retreatBtn.Font = Enum.Font.GothamBold
+retreatBtn.TextSize = 18
+retreatBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+retreatBtn.TextColor3 = Color3.new(1, 1, 1)
+retreatBtn.MouseButton1Click:Connect(function()
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(-7312.06982421875, 626.998291015625, -38629.61328125)
+    end
+end)
 
-    -- Bounties
+    -- Spectate Toggle
+    local spectateToggle = false
+    local spectateTarget = nil
+    local spectateGui = nil
+    local spectateBtn = Instance.new("TextButton", m)
+    spectateBtn.Position = UDim2.new(0, 260, 0, 90)
+    spectateBtn.Size = UDim2.new(0, 80, 0, 30)
+    spectateBtn.Text = "Spectate"
+    spectateBtn.Font = Enum.Font.GothamBold
+    spectateBtn.TextSize = 14
+    spectateBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+    spectateBtn.TextColor3 = Color3.new(1, 1, 1)
+
+    local camera = workspace.CurrentCamera
+
+    spectateBtn.MouseButton1Click:Connect(function()
+        spectateToggle = not spectateToggle
+        spectateBtn.TextColor3 = spectateToggle and Color3.new(0,1,0) or Color3.new(1,0,0)
+
+        if spectateToggle then
+            spectateGui = Instance.new("Frame", screenGui)
+            spectateGui.Name = "SpectateUI"
+            spectateGui.Size = UDim2.new(0, 250, 0, 200)
+            spectateGui.Position = UDim2.new(0.5, -125, 0.5, -100)
+            spectateGui.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            spectateGui.Active = true
+            spectateGui.Draggable = true
+            Instance.new("UICorner", spectateGui).CornerRadius = UDim.new(0, 8)
+
+            local scroll = Instance.new("ScrollingFrame", spectateGui)
+            scroll.Name = "Scroll"
+            scroll.Size = UDim2.new(1, -10, 1, -10)
+            scroll.Position = UDim2.new(0, 5, 0, 5)
+            scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            scroll.ScrollBarThickness = 6
+            scroll.BackgroundTransparency = 1
+            local uiList = Instance.new("UIListLayout", scroll)
+            uiList.SortOrder = Enum.SortOrder.LayoutOrder
+            uiList.Padding = UDim.new(0, 4)
+
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player then
+                    local row = Instance.new("Frame", scroll)
+                    row.Size = UDim2.new(1, 0, 0, 24)
+                    row.BackgroundTransparency = 1
+
+                    local nameLbl = Instance.new("TextLabel", row)
+                    nameLbl.Size = UDim2.new(0.7, 0, 1, 0)
+                    nameLbl.Text = p.DisplayName
+                    nameLbl.Font = Enum.Font.Gotham
+                    nameLbl.TextSize = 14
+                    nameLbl.BackgroundTransparency = 1
+                    nameLbl.TextColor3 = Color3.new(1, 1, 1)
+                    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                    local btn = Instance.new("TextButton", row)
+                    btn.Size = UDim2.new(0.3, 0, 1, 0)
+                    btn.Position = UDim2.new(0.7, 0, 0, 0)
+                    btn.Text = "spect"
+                    btn.Font = Enum.Font.GothamBold
+                    btn.TextSize = 14
+                    btn.BackgroundColor3 = Color3.new(0, 0, 0)
+                    btn.TextColor3 = Color3.new(1, 1, 1)
+
+                    btn.MouseButton1Click:Connect(function()
+                        if spectateTarget == p then
+                            spectateTarget = nil
+                            btn.Text = "spect"
+                            camera.CameraSubject = player.Character:FindFirstChild("Humanoid")
+                            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp then hrp.Anchored = false end
+                        else
+                            spectateTarget = p
+                            btn.Text = "unspect"
+                            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp then hrp.Anchored = true end
+                            spawn(function()
+                                while spectateTarget == p and spectateToggle do
+                                    local char = p.Character
+                                    if char and char:FindFirstChild("Humanoid") then
+                                        camera.CameraSubject = char:FindFirstChild("Humanoid")
+                                    end
+                                    task.wait(0.1)
+                                end
+                            end)
+                        end
+                    end)
+                end
+            end
+            scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 5)
+        else
+            if spectateGui then spectateGui:Destroy() end
+            spectateTarget = nil
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then hrp.Anchored = false end
+            camera.CameraSubject = player.Character:FindFirstChild("Humanoid")
+        end
+    end)
+
+
+-- Bounties
     local bountyToggle=false
     local bountyBtn=Instance.new("TextButton",m)
     bountyBtn.Position = UDim2.new(0,260,0,50)
@@ -534,6 +638,8 @@ end
                 local existing=char:FindFirstChild(tag)
                 if existing then
                     existing:Destroy()
+                    local bountyInfo = char:FindFirstChild("BountyInfo")
+                    if bountyInfo then bountyInfo:Destroy() end
 
                     local a0=hrp_local:FindFirstChild("BountyTracerAttachment0")
                     if a0 then
@@ -554,6 +660,35 @@ end
                     hl.Parent=char
                     hl.Adornee=char
                     hl:SetAttribute("Pulse",true)
+
+                    -- name + distance Billboard
+                    local tagBill = Instance.new("BillboardGui")
+                    tagBill.Name = "BountyInfo"
+                    tagBill.Size = UDim2.new(0, 120, 0, 30)
+                    tagBill.StudsOffset = Vector3.new(0, 3, 0)
+                    tagBill.AlwaysOnTop = true
+                    tagBill.Parent = char
+
+                    local label = Instance.new("TextLabel", tagBill)
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.TextColor3 = Color3.new(1, 1, 1)
+                    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    label.TextStrokeTransparency = 0
+                    label.Font = Enum.Font.GothamBold
+                    label.TextScaled = true
+                    label.Text = "Loading..."
+
+                    -- dynamic update
+                    spawn(function()
+                        while tagBill and tagBill.Parent and bountyToggle do
+                            if hrp_target and hrp_local then
+                                local distance = (hrp_target.Position - hrp_local.Position).Magnitude
+                                label.Text = p.DisplayName .. " | " .. math.floor(distance) .. " studs"
+                            end
+                            task.wait(0.2)
+                        end
+                    end)
 
                     -- tracer
                     local a0=Instance.new("Attachment",hrp_local)
@@ -611,6 +746,14 @@ end
             if bountyUI then
                 bountyUI:Destroy()
                 bountyUI=nil
+                -- Also clean up BountyInfo GUI from all characters
+                for _,p in ipairs(Players:GetPlayers()) do
+                    local char = p.Character
+                    if char then
+                        local info = char:FindFirstChild("BountyInfo")
+                        if info then info:Destroy() end
+                    end
+                end
             end
             -- cleanup any remaining highlights/tracers
             for _,p in ipairs(Players:GetPlayers()) do
@@ -761,11 +904,13 @@ UserInputService.InputBegan:Connect(function(input,gameProcessed)
     end
 end)
 
--- Ensure GUI reopens if removed (e.g., on teleport)
-Players.LocalPlayer:WaitForChild("PlayerGui").ChildRemoved:Connect(function(child)
-    if child.Name == screenGui.Name then
-        -- re-parent the GUI back
-        screenGui.Parent = player:WaitForChild("PlayerGui")
+-- Ensure GUI reopens if removed (auto-reparent)
+spawn(function()
+    while true do
+        if not screenGui.Parent or screenGui.Parent.Name ~= "PlayerGui" then
+            screenGui.Parent = player:WaitForChild("PlayerGui")
+        end
+        task.wait(1)
     end
 end)
 
@@ -805,6 +950,45 @@ spawn(function()
                 end
             end
             task.wait(0.5)
-        else task.wait(1) end
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- Dungeon Farm Loop
+spawn(function()
+    local savedDungeonPosition = nil
+    while true do
+        if dungeonFarm then
+            local live = workspace:FindFirstChild("Live")
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if live and hrp then
+                if not savedDungeonPosition then
+                    savedDungeonPosition = hrp.CFrame
+                end
+                for _, model in ipairs(live:GetChildren()) do
+                    if not dungeonFarm then break end
+                    if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") and model.PrimaryPart then
+                        local hum = model:FindFirstChildOfClass("Humanoid")
+                        local dead = hum and hum.Health <= 0
+                        local dist = (model.HumanoidRootPart.Position - hrp.Position).Magnitude
+                        if not dead and dist <= 2000 then
+                            hrp.CFrame = model.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                            local waitTime = 0.5
+                            while waitTime > 0 and dungeonFarm do
+                                task.wait(0.1)
+                                waitTime -= 0.1
+                            end
+                        end
+                    end
+                end
+            end
+        elseif savedDungeonPosition then
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then hrp.CFrame = savedDungeonPosition end
+            savedDungeonPosition = nil
+        end
+        task.wait(0.1)
     end
 end)
