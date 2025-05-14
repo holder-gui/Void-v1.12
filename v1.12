@@ -77,7 +77,7 @@ delay(5, function() splash:Destroy() end)
 -- Main frame
 local frame = Instance.new("Frame", screenGui)
 frame.Size = UDim2.new(0,360,0,338)
-frame.Position = UDim2.new(0,20,0,250)
+frame.Position = UDim2.new(0.5, -180, 0.55, 0) -- centered below splash
 frame.BackgroundColor3 = themes[currentTheme] and themes[currentTheme].bg or Color3.fromRGB(40,40,40)
 frame.Active = true
 frame.Draggable = true
