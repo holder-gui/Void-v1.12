@@ -25,6 +25,7 @@ local shrine = false
 local dungeonFarm = false
 local chestTimerRunning = false
 local cooldown = 0.03
+local blue = false
 local currentTab = "Main"
 local savedGokuPosition, savedGonKillPosition = nil, nil
 
@@ -82,7 +83,22 @@ frame.BackgroundColor3 = themes[currentTheme] and themes[currentTheme].bg or Col
 frame.Active = true
 frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
-
+-- Purple outline that fades between 100% and 20% opacity
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(255,0,255)
+stroke.Thickness = 5
+spawn(function()
+    while frame and frame.Parent do
+        -- fade to 20% transparency (i.e. 0.8 alpha)
+        local tween1 = TweenService:Create(stroke, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.8})
+        tween1:Play()
+        tween1.Completed:Wait()
+        -- fade back to 0 transparency (fully opaque stroke)
+        local tween2 = TweenService:Create(stroke, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.2})
+        tween2:Play()
+        tween2.Completed:Wait()
+    end
+end)
 -- Attribution
 local attr = Instance.new("TextLabel", frame)
 attr.AnchorPoint = Vector2.new(1,1)
@@ -238,6 +254,8 @@ updateTabs()
                  end
              elseif ref == "dungeon" then
                  dungeonFarm = state
+                 elseif ref == "blue" then
+                 blue = state
              end
          end)
      end
@@ -250,6 +268,7 @@ updateTabs()
      mkToggle("Gon&Kill farm", "gonkill")
      mkToggle("Shrine", "shrine")
      mkToggle("DungeonFarm", "dungeon")
+     mkToggle("Blue",          "blue")
  end
 -- Ensure freeze persists on respawn
 player.CharacterAdded:Connect(function(char)
@@ -259,6 +278,61 @@ player.CharacterAdded:Connect(function(char)
     end
 end)
 
+-- Quest Tab: dynamic list from workspace.QuestBoards
+do
+    local qFrame = pages.Quest
+    local scroll = Instance.new("ScrollingFrame", qFrame)
+    scroll.Size = UDim2.new(1, -10, 1, -10)
+    scroll.Position = UDim2.new(0, 5, 0, 5)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    local uiList = Instance.new("UIListLayout", scroll)
+    uiList.SortOrder = Enum.SortOrder.LayoutOrder
+    uiList.Padding = UDim.new(0, 4)
+
+    for _, model in ipairs(workspace:WaitForChild("QuestBoards"):GetChildren()) do
+        if model:IsA("Model") then
+            local row = Instance.new("Frame", scroll)
+            row.Size = UDim2.new(1, 0, 0, 24)
+            row.BackgroundTransparency = 1
+
+            local nameLbl = Instance.new("TextLabel", row)
+            nameLbl.Size = UDim2.new(0.7, 0, 1, 0)
+            nameLbl.BackgroundTransparency = 1
+            nameLbl.TextColor3 = Color3.new(1,1,1)
+            nameLbl.Font = Enum.Font.Gotham
+            nameLbl.TextSize = 14
+            nameLbl.Text = model.Name
+            nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+            local tog = Instance.new("TextButton", row)
+            tog.Size = UDim2.new(0.3, 0, 1, 0)
+            tog.Position = UDim2.new(0.7, 0, 0, 0)
+            tog.Font = Enum.Font.GothamBold
+            tog.TextSize = 14
+            tog.BackgroundColor3 = themes[currentTheme].btn
+            tog.TextColor3 = Color3.new(1,1,1)
+            tog.Text = "❌"
+
+            local active = false
+tog.Activated:Connect(function()
+    active = not active
+    tog.Text = active and "✅" or "❌"
+    if active then
+        local detector = model:FindFirstChildWhichIsA("ClickDetector", true)
+        if detector then
+            fireclickdetector(detector)
+        else
+            warn("No ClickDetector found in model:", model.Name)
+        end
+    end
+end)
+
+        end
+    end
+
+    scroll.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y + 5)
+end
 -- Duping Tab
 do
     local d = pages.Duping
@@ -928,7 +1002,7 @@ spawn(function()
                 local deadFlag = uiGoku:FindFirstChild("CharacterValues") and uiGoku.CharacterValues:FindFirstChild("dead")
                 if deadFlag and deadFlag.Value then gokuFarm = false end
             end
-            task.wait(0.01)
+            task.wait(1)
         else task.wait(1) end
     end
 end)
@@ -992,3 +1066,21 @@ spawn(function()
         task.wait(0.1)
     end
 end)
+-- Blue-button loop: when `blue` is on, fire GojoFirst every 3 sec
+spawn(function()
+    while true do
+        if blue then
+            local args = {
+                [1] = Players:WaitForChild("CadenalexWho", 9e9),
+                [2] = "GojoFirst",
+            }
+            ReplicatedStorage
+              :WaitForChild("GojoAbilities", 9e9)
+              :FireServer(unpack(args))
+            task.wait(3)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
