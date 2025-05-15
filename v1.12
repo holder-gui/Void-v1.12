@@ -60,7 +60,7 @@ ding:Play()
 local splash = Instance.new("TextLabel", screenGui)
 splash.Size = UDim2.new(0,800,0,100)
 splash.Position = UDim2.new(0.5, -400, 0.4, -50)
-splash.Text = "Brought to you by : Abyss"
+splash.Text = "Void Hub, WE IN THIS BITCH!"
 splash.Font = Enum.Font.GothamBold
 splash.TextSize = 48
 splash.BackgroundColor3 = Color3.new(0,0,0)
@@ -141,7 +141,7 @@ tabFrame.Position = UDim2.new(0,0,0,0)
 tabFrame.BackgroundColor3 = themes[currentTheme] and themes[currentTheme].bg or Color3.fromRGB(40,40,40)
 Instance.new("UICorner", tabFrame).CornerRadius = UDim.new(0,16)
 
-local tabNames = {"Main","Quest","Duping","Themes","Misc.","Drops"}
+local tabNames = {"Main","Farm","Quest","Duping","Themes","Misc.","Drops"}
 local pages, tabs = {}, {}
 local tabCount = #tabNames
 for i, name in ipairs(tabNames) do
@@ -278,61 +278,231 @@ player.CharacterAdded:Connect(function(char)
     end
 end)
 
--- Quest Tab: dynamic list from workspace.QuestBoards
+-- Farm Tab
+ do
+     local farmPage = pages["Farm"]
+     local scrollFarm = Instance.new("ScrollingFrame", farmPage)
+     scrollFarm.Name                   = "FarmList"
+     scrollFarm.Size                   = UDim2.new(1, -10, 1, -40)
+     scrollFarm.Position               = UDim2.new(0, 5, 0, 35)
+     scrollFarm.BackgroundTransparency = 1
+     scrollFarm.ScrollBarThickness     = 6
+
+     local uiFarmList = Instance.new("UIListLayout", scrollFarm)
+     uiFarmList.SortOrder = Enum.SortOrder.LayoutOrder
+     uiFarmList.Padding   = UDim.new(0, 4)
+
+     local farmFlags         = {}
+     local originalPositions = {}
+     local player            = game.Players.LocalPlayer
+
+     local function populateFarm()
+         -- clear old entries
+         for _, child in ipairs(scrollFarm:GetChildren()) do
+             if child:IsA("Frame") then child:Destroy() end
+         end
+
+         -- safely get Live folder (wait max 2s)
+         local liveFolder = workspace:FindFirstChild("Live")
+                           or workspace:WaitForChild("Live", 2)
+         if not liveFolder then
+             scrollFarm.CanvasSize = UDim2.new(0,0,0,0)
+             return
+         end
+
+         -- gather unique names (excluding Script, Gon, Killua, Ultra Instinct Goku)
+         local excluded = { ["Script"] = true, ["Gon"] = true, ["Killua"] = true, ["Ultra Instinct Goku"] = true }
+         local seen, names = {}, {}
+         for _, model in ipairs(liveFolder:GetChildren()) do
+             local nm = model.Name
+             if not excluded[nm] and not seen[nm] then
+                 seen[nm] = true
+                 table.insert(names, nm)
+             end
+         end
+         table.sort(names)  -- alphabetical
+
+         -- build rows
+         local yOffset = 0
+         for _, name in ipairs(names) do
+             if farmFlags[name] == nil then
+                 farmFlags[name] = false
+             end
+
+             local row = Instance.new("Frame", scrollFarm)
+             row.Size                   = UDim2.new(1, 0, 0, 30)
+             row.Position               = UDim2.new(0, 0, 0, yOffset)
+             row.BackgroundTransparency = 1
+
+             -- label (25% transparent black bg)
+             local lbl = Instance.new("TextLabel", row)
+             lbl.Size                   = UDim2.new(0.7, -4, 1, 0)
+             lbl.Position               = UDim2.new(0, 0, 0, 0)
+             lbl.BackgroundColor3       = Color3.new(0, 0, 0)
+             lbl.BackgroundTransparency = 0.25
+             lbl.Text                   = name
+             lbl.Font                   = Enum.Font.Gotham
+             lbl.TextSize               = 14
+             lbl.TextColor3             = Color3.new(1, 1, 1)
+             lbl.TextXAlignment         = Enum.TextXAlignment.Left
+
+             -- toggle button
+             local btn = Instance.new("TextButton", row)
+             btn.Size             = UDim2.new(0.3, -4, 1, 0)
+             btn.Position         = UDim2.new(0.7, 4, 0, 0)
+             btn.Font             = Enum.Font.GothamBold
+             btn.TextSize         = 14
+             btn.Text             = farmFlags[name] and "✅" or "❌"
+             btn.BackgroundColor3 = themes[currentTheme].btn
+             btn.TextColor3       = Color3.new(0, 0, 0)
+
+             btn.MouseButton1Click:Connect(function()
+                 farmFlags[name] = not farmFlags[name]
+                 btn.Text = farmFlags[name] and "✅" or "❌"
+
+                 if farmFlags[name] then
+                     -- save original position
+                     local char = player.Character
+                     if char and char:FindFirstChild("HumanoidRootPart") then
+                         originalPositions[name] = char.HumanoidRootPart.CFrame
+                     end
+
+                     -- start teleport loop
+                     spawn(function()
+                         while true do
+                             if not farmFlags[name] then
+                                 return
+                             end
+                             for _, m in ipairs(liveFolder:GetChildren()) do
+                                 if not farmFlags[name] then
+                                     return
+                                 end
+                                 if m.Name == name then
+                                     local hrp = m:FindFirstChild("HumanoidRootPart")
+                                     if hrp then
+                                         local c = player.Character
+                                         if c and c:FindFirstChild("HumanoidRootPart") then
+                                             -- float 5 studs above
+                                             c.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0,5,0)
+                                             task.wait(0.45)
+                                             if not farmFlags[name] then
+                                                 return
+                                             end
+                                         end
+                                     end
+                                 end
+                             end
+                         end
+                     end)
+                 else
+                     -- return immediately to original
+                     local orig = originalPositions[name]
+                     if orig then
+                         local c = player.Character
+                         if c and c:FindFirstChild("HumanoidRootPart") then
+                             c.HumanoidRootPart.CFrame = orig
+                         end
+                     end
+                     originalPositions[name] = nil
+                 end
+             end)
+
+             yOffset = yOffset + 35
+         end
+
+         scrollFarm.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+     end
+
+     -- build once
+     populateFarm()
+ end
+ -- end Farm Tab
+
+-- Quest Tab
 do
-    local qFrame = pages.Quest
+    local qFrame = pages["Quest"]
     local scroll = Instance.new("ScrollingFrame", qFrame)
-    scroll.Size = UDim2.new(1, -10, 1, -10)
-    scroll.Position = UDim2.new(0, 5, 0, 5)
+    scroll.Size               = UDim2.new(1, -10, 1, -10)
+    scroll.Position           = UDim2.new(0, 5, 0, 5)
     scroll.BackgroundTransparency = 1
     scroll.ScrollBarThickness = 6
+
     local uiList = Instance.new("UIListLayout", scroll)
     uiList.SortOrder = Enum.SortOrder.LayoutOrder
-    uiList.Padding = UDim.new(0, 4)
+    uiList.Padding   = UDim.new(0, 4)
 
-    for _, model in ipairs(workspace:WaitForChild("QuestBoards"):GetChildren()) do
-        if model:IsA("Model") then
-            local row = Instance.new("Frame", scroll)
-            row.Size = UDim2.new(1, 0, 0, 24)
-            row.BackgroundTransparency = 1
+    -- safely get QuestBoards (wait max 2s)
+    local boardsContainer = workspace:FindFirstChild("QuestBoards")
+                          or workspace:WaitForChild("QuestBoards", 2)
+    if boardsContainer then
+        -- gather & sort boards
+        local boards = boardsContainer:GetChildren()
+        table.sort(boards, function(a, b)
+            return a.Name:lower() < b.Name:lower()
+        end)
 
-            local nameLbl = Instance.new("TextLabel", row)
-            nameLbl.Size = UDim2.new(0.7, 0, 1, 0)
-            nameLbl.BackgroundTransparency = 1
-            nameLbl.TextColor3 = Color3.new(1,1,1)
-            nameLbl.Font = Enum.Font.Gotham
-            nameLbl.TextSize = 14
-            nameLbl.Text = model.Name
-            nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        -- build one row per board
+        for _, model in ipairs(boards) do
+            if model:IsA("Model")
+            and not (model.Name:find("TimeMachine") or model.Name:find("Teleporter")) then
 
-            local tog = Instance.new("TextButton", row)
-            tog.Size = UDim2.new(0.3, 0, 1, 0)
-            tog.Position = UDim2.new(0.7, 0, 0, 0)
-            tog.Font = Enum.Font.GothamBold
-            tog.TextSize = 14
-            tog.BackgroundColor3 = themes[currentTheme].btn
-            tog.TextColor3 = Color3.new(1,1,1)
-            tog.Text = "❌"
+                local row = Instance.new("Frame", scroll)
+                row.Size               = UDim2.new(1, 0, 0, 24)
+                row.BackgroundColor3   = Color3.new(0, 0, 0)
+                row.BackgroundTransparency = 0.3
 
-            local active = false
-tog.Activated:Connect(function()
-    active = not active
-    tog.Text = active and "✅" or "❌"
-    if active then
-        local detector = model:FindFirstChildWhichIsA("ClickDetector", true)
-        if detector then
-            fireclickdetector(detector)
-        else
-            warn("No ClickDetector found in model:", model.Name)
+                local nameLbl = Instance.new("TextLabel", row)
+                nameLbl.Size               = UDim2.new(0.7, 0, 1, 0)
+                nameLbl.Position           = UDim2.new(0, 0, 0, 0)
+                nameLbl.BackgroundTransparency = 1
+                nameLbl.Text               = model.Name
+                nameLbl.Font               = Enum.Font.Gotham
+                nameLbl.TextSize           = 14
+                nameLbl.TextColor3         = Color3.new(1, 1, 1)
+
+                local tog = Instance.new("TextButton", row)
+                tog.Size             = UDim2.new(0.3, 0, 1, 0)
+                tog.Position         = UDim2.new(0.7, 0, 0, 0)
+                tog.Font             = Enum.Font.GothamBold
+                tog.TextSize         = 14
+                tog.BackgroundColor3 = themes[currentTheme].btn
+                tog.TextColor3       = Color3.new(1, 1, 1)
+                tog.Text             = "❌"
+
+                local active = false
+                local connection
+
+                tog.Activated:Connect(function()
+                    active = not active
+                    tog.Text = active and "✅" or "❌"
+
+                    if connection then
+                        connection:Disconnect()
+                        connection = nil
+                    end
+
+                    if active then
+                        local detector = model:FindFirstChildWhichIsA("ClickDetector", true)
+                        local player = game.Players.LocalPlayer
+                        local PlayerValues = player:WaitForChild("PlayerValues")
+                        local CurrentQuest = PlayerValues:WaitForChild("CurrentQuest")
+
+                        if detector then
+                            fireclickdetector(detector)
+                            connection = CurrentQuest.Changed:Connect(function()
+                                task.wait(0.5)
+                                fireclickdetector(detector)
+                            end)
+                        else
+                            warn("No ClickDetector in quest model:", model.Name)
+                        end
+                    end
+                end)
+            end
         end
     end
-end)
-
-        end
-    end
-
-    scroll.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y + 5)
 end
+-- end Quest Tab
 -- Duping Tab
 do
     local d = pages.Duping
